@@ -1,0 +1,1346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>🏀 Shooting Performance Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.7/dayjs.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f0f9ff; color: #374151; } /* Light blue background */
+        .title-text { font-size: 3rem; font-weight: 800; color: #1e3a8a; text-align: center; line-height: 1.1; } /* Deeper blue, larger */
+        .subtitle-text { font-size: 1.5rem; color: #374151; text-align: center; margin-top: 0.5rem; }
+        .section-title { font-size: 1.75rem; font-weight: 700; color: #1d4ed8; margin-bottom: 1.5rem; } /* Stronger blue */
+        
+        #header-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem 3rem; /* More padding */
+            background-color: #ffffff; /* White header */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* More subtle shadow */
+            border-bottom: 1px solid #e2e8f0; /* Light border */
+        }
+        #header-bar img { width: 4.5rem; height: 4.5rem; border-radius: 0.75rem; } /* Slightly larger logo */
+        #header-bar > div { flex-grow: 1; text-align: center; } /* Center title/subtitle */
+        #manualSaveBtn {
+            background-color: #10b981; /* Green */
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 1.75rem;
+            border-radius: 0.75rem;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+            border: none;
+        }
+        #manualSaveBtn:hover {
+            background-color: #059669; /* Darker green */
+            box-shadow: 0 6px 12px rgba(16, 185, 129, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* General Card Styles */
+        .card-container {
+            background-color: #ffffff;
+            padding: 2.5rem; /* More generous padding */
+            border-radius: 1.5rem; /* Rounded corners */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); /* Stronger shadow */
+            margin-bottom: 2.5rem; /* More space between cards */
+            transition: all 0.3s ease-in-out;
+        }
+        .card-container:hover {
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+        }
+
+        /* Keep .hidden for elements that are hidden *before* JS manipulates display */
+        .hidden { display: none; } 
+
+        /* Form Input Styles */
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        #playerName { /* Consolidated styles for all input types and specific player name input */
+            padding: 0.85rem 1.25rem;
+            border: 1px solid #cbd5e0; /* light gray border */
+            border-radius: 0.75rem; /* Rounded corners */
+            background-color: #f8fafc; /* very light gray background */
+            color: #374151;
+            font-size: 1rem;
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            width: 100%; /* Make inputs take full width of their grid cell */
+        }
+        input:focus,
+        #playerName:focus {
+            outline: none;
+            border-color: #3b82f6; /* blue focus */
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2); /* subtle blue glow */
+        }
+        
+        #dataForm button[type="submit"] {
+            background-image: linear-gradient(to right, #3b82f6, #2563eb); /* Blue gradient */
+            color: white;
+            font-weight: 700;
+            padding: 0.85rem 2rem;
+            border-radius: 0.75rem;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            border: none;
+            cursor: pointer;
+        }
+        #dataForm button[type="submit"]:hover {
+            background-image: linear-gradient(to right, #2563eb, #1e40af); /* Darker gradient */
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* Filter Button Styles */
+        .filter-btn-group {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.75rem; /* Slightly more space */
+            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .filter-btn {
+            padding: 0.75rem 1.75rem;
+            border-radius: 0.75rem; /* More rounded */
+            font-weight: 600;
+            background-color: #e2e8f0; /* bg-gray-200 */
+            color: #4a5568; /* text-gray-700 */
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+            border: 1px solid #cbd5e0;
+        }
+        .filter-btn:hover {
+            background-color: #cbd5e0;
+            transform: translateY(-1px);
+        }
+        .filter-btn.active {
+            background-image: linear-gradient(to right, #3b82f6, #2563eb);
+            color: #ffffff;
+            border-color: #2563eb;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Leaderboard Specific Styles */
+        .leaderboard-card {
+            background-color: #ffffff;
+            border-radius: 1.25rem; /* More rounded */
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08); /* Stronger shadow */
+            padding: 2rem; /* More padding */
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .leaderboard-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+        }
+        .leaderboard-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #1e3a8a; /* Deep blue */
+            margin-bottom: 1.25rem;
+            text-align: center;
+            position: relative;
+            padding-bottom: 0.75rem; /* Space for underline */
+        }
+        .leaderboard-title::after {
+            content: '';
+            display: block;
+            width: 60px; /* Wider underline */
+            height: 4px; /* Thicker underline */
+            background-color: #3b82f6; /* Blue-600 */
+            margin: 0.5rem auto 0;
+            border-radius: 9999px;
+        }
+        .leaderboard-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .leaderboard-list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0; /* More vertical padding */
+            border-bottom: 1px solid #edf2f7; /* Very light border */
+            font-size: 1.05rem; /* Slightly larger text */
+            color: #4a5568; /* Darker gray for text */
+        }
+        .leaderboard-list li:last-child {
+            border-bottom: none;
+        }
+        .leaderboard-list li .rank {
+            font-weight: 700; /* Bolder rank */
+            color: #1e40af; /* Blue-800 */
+            font-size: 1.15rem;
+            margin-right: 1rem;
+        }
+        .leaderboard-list li .player-name {
+            flex-grow: 1;
+            font-weight: 600;
+        }
+        .leaderboard-list li .value {
+            font-weight: bold;
+            color: #10b981; /* Green-500 */
+            font-size: 1.1rem;
+        }
+        .leaderboard-list li .value.red {
+            color: #ef4444; /* Red-500 */
+        }
+
+        /* Player Overview Details */
+        .player-details {
+            border-radius: 1rem;
+            background-color: #f8fafc; /* Lighter background for details */
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05); /* Inner shadow for depth */
+            padding: 2rem;
+        }
+        .player-details h4 {
+            color: #1d4ed8;
+        }
+        .player-details ul {
+            padding-left: 1.5rem;
+        }
+        .player-details li {
+            margin-bottom: 0.4rem;
+        }
+
+        /* Full Data Table Styling */
+        #fullTable table {
+            border-collapse: collapse; /* For clean borders */
+            width: 100%; /* Ensure table takes full width */
+        }
+        #fullTable th, #fullTable td {
+            padding: 0.9rem 1.2rem;
+            border: 1px solid #e2e8f0; /* Light border for cells */
+            text-align: left;
+            font-size: 0.95rem;
+        }
+        #fullTable thead th {
+            background-color: #ebf8ff; /* Very light blue header */
+            font-weight: 700;
+            color: #2b6cb0; /* Darker blue for headers */
+        }
+        #fullTable tbody tr:nth-child(even) {
+            background-color: #f7fafc; /* Subtle stripe effect */
+        }
+        #fullTable tbody tr:hover {
+            background-color: #e6f6ff; /* Light blue hover */
+            transition: background-color 0.2s ease-in-out;
+        }
+        #fullTable .bg-red-500 {
+             background-color: #ef4444; /* Red-500 */
+             border-radius: 0.5rem;
+             padding: 0.5rem 1rem;
+             font-weight: 600;
+             transition: all 0.2s ease-in-out;
+        }
+        #fullTable .bg-red-500:hover {
+            background-color: #dc2626; /* Red-600 */
+            transform: translateY(-1px);
+        }
+        #fullTable .bg-indigo-600 {
+            background-image: linear-gradient(to right, #4c51bf, #667eea); /* Indigo gradient */
+            color: white;
+            font-weight: 700;
+            padding: 0.85rem 2rem;
+            border-radius: 0.75rem;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 15px rgba(76, 81, 191, 0.3);
+            border: none;
+            cursor: pointer;
+        }
+        #fullTable .bg-indigo-600:hover {
+            background-image: linear-gradient(to right, #3f45a0, #5563cc);
+            box-shadow: 0 6px 20px rgba(76, 81, 191, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* Login Screen Specific Styles */
+        #loginScreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(240, 249, 255, 0.95); /* Semi-transparent light blue */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        #loginCard {
+            background-color: #ffffff;
+            padding: 3rem;
+            border-radius: 1.5rem;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        #loginCard h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e3a8a;
+            margin-bottom: 2rem;
+        }
+        #loginCard input[type="password"] {
+            padding: 1rem 1.5rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 0.75rem;
+            width: 100%;
+            margin-bottom: 1.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+        #loginCard button {
+            background-image: linear-gradient(to right, #3b82f6, #2563eb);
+            color: white;
+            font-weight: 700;
+            padding: 1rem 2.5rem;
+            border-radius: 0.75rem;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+            border: none;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        #loginCard button:hover {
+            background-image: linear-gradient(to right, #2563eb, #1e40af);
+            box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+        }
+        #loginMessage {
+            color: #ef4444; /* Red-500 */
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+    <!-- Login Screen -->
+    <div id="loginScreen">
+        <div id="loginCard">
+            <h2>Muharraq Club Practice Tracker</h2> <!-- Changed title -->
+            <p class="text-gray-600 mb-6">Please enter your access password:</p>
+            <input type="password" id="accessPassword" placeholder="Enter password" />
+            <button id="loginBtn">Login</button>
+            <p id="loginMessage" class="hidden"></p>
+            <p class="text-sm text-gray-500 mt-4">
+                Admin: Full Access | Management: Data Entry & View | Player: View Only
+            </p> <!-- Replaced hint with professional note -->
+        </div>
+    </div>
+
+    <div id="appContent" style="display: none;"> <!-- Main application content, hidden until logged in, now using inline style -->
+        <div id="header-bar">
+            <img src="uploaded:logo.png-4121d6f5-8a1b-4587-a9d0-ad4dd2ab7657" alt="Muharraq Club Logo" class="w-16 h-16" />
+            <div>
+                <h1 class="title-text">🏀 Shooting Performance Tracker</h1>
+                <p class="subtitle-text font-semibold">Muharraq Club</p>
+            </div>
+            <button id="manualSaveBtn">💾 Manual Save</button>
+        </div>
+
+        <div class="container mx-auto py-8 px-6">
+            <div class="card-container">
+                <label for="sessionDate" class="block text-lg font-semibold mb-3">Training Date:</label> 
+                <input type="date" id="sessionDate" class="w-full" required />
+            </div>
+
+            <div class="card-container" id="playerEntryCard">
+                <h2 class="section-title">Player Shooting Entry</h2>
+                <form id="dataForm" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <input list="playerList" id="playerName" placeholder="Player Name" class="w-full" required />
+                    <datalist id="playerList"></datalist>
+
+                    <input type="number" min="0" max="10" id="cornerL" placeholder="Corner L (0-10)" required />
+                    <input type="number" min="0" max="10" id="wingL" placeholder="Wing L (0-10)" required />
+                    <input type="number" min="0" max="10" id="top" placeholder="Top (0-10)" required />
+                    <input type="number" min="0" max="10" id="wingR" placeholder="Wing R (0-10)" required />
+                    <input type="number" min="0" max="10" id="cornerR" placeholder="Corner R (0-10)" required />
+                    <input type="number" min="0" max="20" id="freeThrows" placeholder="Free Throws (0-20)" required />
+
+                    <div>
+                        <label for="timeEntry" class="block text-sm font-medium text-gray-700 mb-1">Conditioning Drill Time (mm:ss)</label>
+                        <input type="text" id="timeEntry" placeholder="e.g. 02:45" pattern="[0-5]\d:[0-5]\d" class="w-full" required />
+                    </div>
+
+                    <button type="submit" id="addDataBtn">➕ Add Data</button>
+                </form>
+            </div>
+
+            <!-- Filter Data section -->
+            <div class="card-container">
+                <h2 class="section-title">Filter Data by Month</h2>
+                <div id="filterButtonGroup" class="filter-btn-group">
+                    <button class="filter-btn" data-filter="june">June</button>
+                    <button class="filter-btn" data-filter="july">July</button>
+                    <button class="filter-btn" data-filter="august">August</button>
+                    <button class="filter-btn" data-filter="september">September</button>
+                    <button class="filter-btn active" data-filter="all">All Months</button>
+                </div>
+            </div>
+
+            <div class="card-container">
+                <h2 class="section-title">📊 Player Overview</h2>
+                <div id="overviewContainer"></div>
+            </div>
+
+            <div class="card-container">
+                <h2 class="section-title">🏆 Top Performances</h2>
+                <div id="leaderboards" class="grid grid-cols-1 md:grid-cols-3 gap-8"></div>
+            </div>
+
+            <div class="card-container">
+                <h2 class="section-title">🗂 Full Data Table</h2>
+                <button onclick="toggleTable()" class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 mb-4">🔁 Toggle Table</button>
+                <div id="fullTable" class="hidden overflow-x-auto"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const loginScreen = document.getElementById('loginScreen');
+        const accessPasswordInput = document.getElementById('accessPassword');
+        const loginBtn = document.getElementById('loginBtn');
+        const loginMessage = document.getElementById('loginMessage');
+        const appContent = document.getElementById('appContent');
+
+        const form = document.getElementById('dataForm');
+        const sessionDate = document.getElementById('sessionDate');
+        const playerNameInput = document.getElementById('playerName');
+        const playerList = document.getElementById('playerList');
+        const manualSaveBtn = document.getElementById('manualSaveBtn');
+        const overviewContainer = document.getElementById('overviewContainer');
+        const fullTableDiv = document.getElementById('fullTable');
+        const filterButtonGroup = document.getElementById('filterButtonGroup');
+        const playerEntryCard = document.getElementById('playerEntryCard');
+        const addDataBtn = document.getElementById('addDataBtn');
+
+        let tableVisible = false;
+        const playerCharts = {};
+        let currentFilter = 'all'; // Default filter: 'all' (entire period)
+        let currentUserRole = null; // Stores the current user's role
+
+        // --- Mock User Roles and Passwords (for demonstration ONLY, NOT secure for production) ---
+        const MOCK_USER_ROLES = {
+            'A123': 'admin',
+            'M123': 'management',
+            'P123': 'player'
+        };
+
+        // --- Login Logic ---
+        loginBtn.addEventListener('click', () => {
+            const password = accessPasswordInput.value.trim(); // Trim password input
+            const role = MOCK_USER_ROLES[password];
+
+            loginMessage.classList.add('hidden'); // Always hide previous message on new attempt
+            console.log('Attempting login with password:', password);
+
+            if (role) {
+                currentUserRole = role;
+                loginScreen.style.display = 'none'; // Directly hide login screen
+                appContent.style.display = 'block'; // Directly show app content
+                console.log('Login successful as:', currentUserRole);
+                updateUIForRole(); // Update UI based on the logged-in role
+                applyFilter(currentFilter); // Re-render content based on access
+            } else {
+                loginMessage.textContent = 'Invalid password. Please try again.';
+                loginMessage.classList.remove('hidden');
+                console.log('Login failed for password:', password);
+            }
+        });
+
+        /**
+         * Updates the UI elements based on the current user's role.
+         */
+        function updateUIForRole() {
+            // Reset all potential editable/actionable states
+            manualSaveBtn.style.display = 'none'; // Directly hide button
+            addDataBtn.style.display = 'none'; // Directly hide button
+            sessionDate.disabled = true; // Disable date input by default
+            playerEntryCard.querySelectorAll('input').forEach(input => input.disabled = true);
+            
+            // Re-enable playerEntryCard elements only if current user is management or admin
+            if (currentUserRole === 'admin' || currentUserRole === 'management') {
+                sessionDate.disabled = false; // Enable date input for management and admin
+                playerEntryCard.style.display = 'block'; // Ensure the card is visible
+                playerEntryCard.querySelectorAll('input').forEach(input => input.disabled = false);
+                addDataBtn.style.display = 'block'; // Show add data button
+            } else {
+                playerEntryCard.style.display = 'none'; // Hide the card entirely for players
+            }
+
+            // Manual Save Button visibility (only for admin)
+            if (currentUserRole === 'admin') {
+                manualSaveBtn.style.display = 'block'; // Show manual save button
+            }
+
+            // Table cell contentEditable and delete buttons will be handled in generateTable()
+            generateTable(); // Re-generate table to apply editable/delete permissions
+            
+            // Adjust Player Overview "Show Details" buttons visibility
+            document.querySelectorAll('.player-details-toggle-btn').forEach(button => {
+                // All roles can view details, so these buttons remain visible.
+                // Their click handler determines if charts are rendered.
+            });
+            console.log('UI updated for role:', currentUserRole);
+        }
+
+
+        /**
+         * Helper function to calculate average Catch & Shoot percentage for a given set of entries.
+         * @param {Array<Object>} entries - An array of player data entries.
+         * @returns {number} The average C&S percentage.
+         */
+        function calculateAvgCS(entries) {
+            if (entries.length === 0) return 0;
+            let totalMade = 0;
+            let totalAttempted = 0;
+            entries.forEach(entry => {
+                totalMade += entry.shots.reduce((a, b) => a + b, 0);
+                totalAttempted += 50; // 5 spots * 10 shots/spot
+            });
+            return totalAttempted === 0 ? 0 : (totalMade / totalAttempted) * 100;
+        }
+
+        /**
+         * Helper function to calculate average Free Throw percentage for a given set of entries.
+         * @param {Array<Object>} entries - An array of player data entries.
+         * @returns {number} The average FT percentage.
+         */
+        function calculateAvgFT(entries) {
+            if (entries.length === 0) return 0;
+            let totalMade = 0;
+            let totalAttempted = 0;
+            entries.forEach(entry => {
+                totalMade += entry.ft;
+                totalAttempted += 20; // 20 free throws
+            });
+            return totalAttempted === 0 ? 0 : (totalMade / totalAttempted) * 100;
+        }
+
+        /**
+         * Helper function to calculate average conditioning time in seconds for a given set of entries.
+         * @param {Array<Object>} entries - An array of player data entries.
+         * @returns {number} The average conditioning time in seconds.
+         */
+        function calculateAvgTime(entries) {
+            if (entries.length === 0) return 0;
+            let totalSeconds = 0;
+            entries.forEach(entry => {
+                const [m, s] = entry.testTime.split(':').map(Number);
+                totalSeconds += m * 60 + s;
+            });
+            return totalSeconds / entries.length;
+        }
+
+        /**
+         * Formats a percentage change value with an arrow and color coding.
+         * @param {number} change - The percentage change value.
+         * @param {boolean} [isTime=false] - True if the change is for time (lower is better, so positive change is improvement).
+         * @returns {string} HTML string with formatted change.
+         */
+        const formatPercentageChange = (change, isTime = false) => {
+            if (change === 0 || isNaN(change)) return `0.0%`;
+
+            const sign = change > 0 ? '▲' : '▼';
+            let colorClass;
+
+            if (isTime) {
+                // For time, positive change (meaning time decreased) is an improvement (green arrow up)
+                colorClass = change > 0 ? 'text-green-600' : 'text-red-600';
+            } else {
+                // For percentages (C&S, FT), positive change means improvement (green arrow up)
+                colorClass = change > 0 ? 'text-green-600' : 'text-red-600';
+            }
+
+            // Handle very large numbers indicating improvement from zero
+            if (Math.abs(change) >= 1000) {
+                return `<span class="${colorClass}">${sign} Infinite%</span>`;
+            }
+
+            return `<span class="${colorClass}">${sign} ${Math.abs(change).toFixed(1)}%</span>`;
+        };
+
+        window.onload = () => {
+            const today = new Date().toISOString().split('T')[0];
+            sessionDate.value = today;
+            loadPlayerNamesForDatalist();
+            console.log('Window loaded. Datalist and date initialized.');
+            // Initial state: app content hidden
+            appContent.style.display = 'none';
+        };
+
+        /**
+         * Filters data based on the selected month.
+         * @param {Array<Object>} allData - The full array of player data.
+         * @param {string} filterType - The filter to apply ('june', 'july', 'august', 'september', 'all').
+         * @returns {Array<Object>} The filtered data.
+         */
+        function filterDataByPeriod(allData, filterType) {
+            const currentYear = dayjs().year(); // Get the current year dynamically
+
+            return allData.filter(entry => {
+                const entryDate = dayjs(entry.date); // Get dayjs object from entry date
+                const entryMonth = entryDate.month(); // 0 for Jan, 1 for Feb, etc.
+
+                switch (filterType) {
+                    case 'june':
+                        // June is month 5 (0-indexed)
+                        return entryMonth === 5 && entryDate.year() === currentYear;
+                    case 'july':
+                        // July is month 6
+                        return entryMonth === 6 && entryDate.year() === currentYear;
+                    case 'august':
+                        // August is month 7
+                        return entryMonth === 7 && entryDate.year() === currentYear;
+                    case 'september':
+                        // September is month 8
+                        return entryMonth === 8 && entryDate.year() === currentYear;
+                    case 'all':
+                    default:
+                        return true; // No filter, return all data
+                }
+            });
+        }
+
+        /**
+         * Applies the selected filter, updates active button state, and re-renders sections.
+         * @param {string} filterType - The filter to apply ('june', 'july', 'august', 'september', 'all').
+         */
+        function applyFilter(filterType) {
+            currentFilter = filterType;
+
+            // Update active button styling
+            document.querySelectorAll('.filter-btn').forEach(button => {
+                if (button.dataset.filter === filterType) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+
+            // Re-render all sections with filtered data
+            updateOverview();
+            updateLeaderboards();
+            if (tableVisible) { // Only regenerate table if it's currently visible
+                generateTable();
+            }
+            console.log('Filter applied:', filterType);
+        }
+
+        // Add event listeners to filter buttons
+        filterButtonGroup.addEventListener('click', (event) => {
+            if (event.target.classList.contains('filter-btn')) {
+                const filterType = event.target.dataset.filter;
+                applyFilter(filterType);
+            }
+        });
+
+
+        /**
+         * Loads existing player names from localStorage to populate the datalist.
+         */
+        function loadPlayerNamesForDatalist() {
+            const allData = JSON.parse(localStorage.getItem('trackerData')) || [];
+            const uniquePlayerNames = [...new Set(allData.map(entry => entry.name))];
+            playerList.innerHTML = ''; // Clear existing options
+            uniquePlayerNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                playerList.appendChild(option);
+            });
+        }
+
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Only allow admin and management to submit data
+            if (currentUserRole !== 'admin' && currentUserRole !== 'management') {
+                alert('You do not have permission to add data.');
+                return;
+            }
+
+            const date = sessionDate.value;
+            const name = playerNameInput.value.trim();
+            const testTime = document.getElementById('timeEntry').value;
+            if (!/^[0-5]\d:[0-5]\d$/.test(testTime)) {
+                alert('Invalid time format. Use mm:ss (e.g., 02:45).');
+                return;
+            }
+
+            const data = {
+                date: date,
+                name: name,
+                shots: [
+                    Number(document.getElementById('cornerL').value),
+                    Number(document.getElementById('wingL').value),
+                    Number(document.getElementById('top').value),
+                    Number(document.getElementById('wingR').value),
+                    Number(document.getElementById('cornerR').value)
+                ],
+                ft: Number(document.getElementById('freeThrows').value),
+                testTime: testTime
+            };
+
+            let allData = JSON.parse(localStorage.getItem('trackerData')) || [];
+            allData.push(data);
+            localStorage.setItem('trackerData', JSON.stringify(allData));
+
+            if (![...playerList.options].some(opt => opt.value === name)) {
+                const option = document.createElement('option');
+                option.value = name;
+                playerList.appendChild(option);
+            }
+
+            alert('✅ Data added for ' + name);
+            form.reset();
+            sessionDate.value = date;
+            applyFilter(currentFilter); // Re-apply current filter to update sections with new data
+            console.log('Data added for:', name);
+        });
+
+        manualSaveBtn.addEventListener('click', () => {
+            // Only allow admin to manually save
+            if (currentUserRole !== 'admin') {
+                alert('You do not have permission to save data.');
+                return;
+            }
+
+            const data = localStorage.getItem('trackerData');
+            if (!data || JSON.parse(data).length === 0) {
+                alert('No data to save. Please add some entries first.');
+                return;
+            }
+            const blob = new Blob([data], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Muharraq_ShootingTracker_backup_${dayjs().format('YYYYMMDD_HHmmss')}.json`;
+            a.click();
+            alert('Your data has been successfully downloaded!');
+            console.log('Data manually saved.');
+        });
+
+        function toggleTable() {
+            tableVisible = !tableVisible;
+            if (tableVisible) {
+                fullTableDiv.style.display = 'block'; // Show table directly
+                generateTable();
+            } else {
+                fullTableDiv.style.display = 'none'; // Hide table directly
+            }
+            console.log('Table visibility toggled:', tableVisible);
+        }
+
+        function generateTable() {
+            // Get all data, then filter it
+            const allData = JSON.parse(localStorage.getItem('trackerData')) || [];
+            const data = filterDataByPeriod(allData, currentFilter);
+
+            if (!data.length) return fullTableDiv.innerHTML = '<p class="text-sm text-center py-4">No data available for this period.</p>';
+            const table = document.createElement('table');
+            table.className = "min-w-full bg-white"; /* Removed border here as cells have their own */
+            table.innerHTML = `<thead><tr class="bg-gray-100">
+                <th class="px-4 py-2">Date</th>
+                <th class="px-4 py-2">Player</th>
+                <th class="px-4 py-2">Corner L</th>
+                <th class="px-4 py-2">Wing L</th>
+                <th class="px-4 py-2">Top</th>
+                <th class="px-4 py-2">Wing R</th>
+                <th class="px-4 py-2">Corner R</th>
+                <th class="px-4 py-2">Free Throws</th>
+                <th class="px-4 py-2">Time</th>
+                <th class="px-4 py-2">Actions</th>
+            </tr></thead>`;
+            const tbody = document.createElement('tbody');
+            // Sort data by date for consistent display
+            const sortedData = [...data].sort((a, b) => dayjs(a.date).diff(dayjs(b.date)));
+
+            sortedData.forEach((row, i) => {
+                const tr = document.createElement('tr');
+                const fields = [
+                    row.date,
+                    row.name,
+                    ...row.shots,
+                    row.ft,
+                    row.testTime
+                ];
+                fields.forEach((val, j) => {
+                    const td = document.createElement('td');
+                    // Only allow contentEditable for admin role
+                    td.contentEditable = (currentUserRole === 'admin');
+                    td.className = 'border px-4 py-2';
+                    td.innerText = val;
+                    // Add event listener only if editable
+                    if (currentUserRole === 'admin') {
+                        td.addEventListener('blur', () => {
+                            let currentData = JSON.parse(localStorage.getItem('trackerData')) || [];
+                            const originalRowIndex = currentData.findIndex(d => d.date === row.date && d.name === row.name && d.testTime === row.testTime && JSON.stringify(d.shots) === JSON.stringify(row.shots) && d.ft === row.ft);
+                            
+                            if (originalRowIndex !== -1) {
+                                const updatedFields = [...tr.querySelectorAll('td')].map(td => td.innerText);
+                                const [date, name, cL, wL, top, wR, cR, ft, time] = updatedFields;
+                                
+                                let newFt = Number(ft);
+                                let newShots = [Number(cL), Number(wL), Number(top), Number(wR), Number(cR)];
+
+                                if (isNaN(newFt) || newFt < 0 || newFt > 20 ||
+                                    newShots.some(s => isNaN(s) || s < 0 || s > 10) ||
+                                    !/^[0-5]\d:[0-5]\d$/.test(time)) {
+                                    alert('Invalid data entered. Please check shot counts (0-10), free throws (0-20), and time format (mm:ss). Reverting changes.');
+                                    generateTable(); 
+                                    return;
+                                }
+
+                                currentData[originalRowIndex] = {
+                                    date: date,
+                                    name: name,
+                                    shots: newShots,
+                                    ft: newFt,
+                                    testTime: time
+                                };
+                                localStorage.setItem('trackerData', JSON.stringify(currentData));
+                                applyFilter(currentFilter);
+                                console.log('Table data updated.');
+                            }
+                        });
+                    }
+                    tr.appendChild(td);
+                });
+                
+                // Add a delete button to each row, only visible/functional for admin
+                const deleteTd = document.createElement('td');
+                deleteTd.className = 'border px-4 py-2 text-center';
+                if (currentUserRole === 'admin') {
+                    const deleteButton = document.createElement('button');
+                    deleteButton.innerText = 'Delete';
+                    deleteButton.className = 'bg-red-500 text-white'; /* Class for custom styling */
+                    deleteButton.onclick = () => {
+                        if (confirm('Are you sure you want to delete this entry?')) {
+                            let currentData = JSON.parse(localStorage.getItem('trackerData')) || [];
+                            const indexToDelete = currentData.findIndex(d => d.date === row.date && d.name === row.name && d.testTime === row.testTime && JSON.stringify(d.shots) === JSON.stringify(row.shots) && d.ft === row.ft);
+                            
+                            if (indexToDelete !== -1) {
+                                currentData.splice(indexToDelete, 1);
+                                localStorage.setItem('trackerData', JSON.stringify(currentData));
+                                applyFilter(currentFilter);
+                                loadPlayerNamesForDatalist();
+                                console.log('Entry deleted.');
+                            }
+                        }
+                    };
+                    deleteTd.appendChild(deleteButton);
+                } else {
+                    deleteTd.innerText = 'N/A'; // Or leave empty for non-admins
+                }
+                tr.appendChild(deleteTd);
+
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            fullTableDiv.innerHTML = '';
+            fullTableDiv.appendChild(table);
+            console.log('Table generated.');
+        }
+
+        function updateOverview() {
+            const allData = JSON.parse(localStorage.getItem('trackerData')) || [];
+            const data = filterDataByPeriod(allData, currentFilter);
+
+            const players = {};
+            const shotSpotNames = ['Corner L', 'Wing L', 'Top', 'Wing R', 'Corner R'];
+
+            data.forEach(entry => {
+                if (!players[entry.name]) {
+                    players[entry.name] = {
+                        made: 0,
+                        total: 0,
+                        ft: 0,
+                        ftTotal: 0,
+                        time: 0,
+                        sessions: new Set(),
+                        allEntries: [], 
+                        shotSpots: Array(5).fill(0).map(() => ({ made: 0, total: 0 })),
+                        conditioningTimes: []
+                    };
+                }
+                players[entry.name].made += entry.shots.reduce((a, b) => a + b, 0);
+                players[entry.name].total += 50;
+                players[entry.name].ft += entry.ft;
+                players[entry.name].ftTotal += 20;
+                const [m, s] = entry.testTime.split(':').map(Number);
+                const totalSecs = m * 60 + s;
+                players[entry.name].time += totalSecs;
+                players[entry.name].sessions.add(entry.date);
+                players[entry.name].allEntries.push(entry); 
+
+                entry.shots.forEach((made, index) => {
+                    players[entry.name].shotSpots[index].made += made;
+                    players[entry.name].shotSpots[index].total += 10;
+                });
+                players[entry.name].conditioningTimes.push(totalSecs);
+            });
+
+            overviewContainer.innerHTML = Object.entries(players).map(([name, stat]) => {
+                const avgTime = stat.time / stat.sessions.size;
+                
+                const playerSpecificDataSorted = stat.allEntries.sort((a, b) => dayjs(a.date).diff(dayjs(b.date)));
+
+                let netCsChange = 0;
+                let netFtChange = 0;
+                let netTimeChange = 0;
+
+                if (playerSpecificDataSorted.length >= 2) {
+                    const halfLength = Math.floor(playerSpecificDataSorted.length / 2);
+                    const firstHalf = playerSpecificDataSorted.slice(0, halfLength);
+                    const secondHalf = playerSpecificDataSorted.slice(halfLength);
+
+                    const avgCsFirstHalf = calculateAvgCS(firstHalf);
+                    const avgCsSecondHalf = calculateAvgCS(secondHalf);
+                    if (avgCsFirstHalf > 0) {
+                        netCsChange = ((avgCsSecondHalf - avgCsFirstHalf) / avgCsFirstHalf) * 100;
+                    } else if (avgCsSecondHalf > 0) {
+                        netCsChange = Infinity; 
+                    }
+
+                    const avgFtFirstHalf = calculateAvgFT(firstHalf);
+                    const avgFtSecondHalf = calculateAvgFT(secondHalf);
+                    if (avgFtFirstHalf > 0) {
+                        netFtChange = ((avgFtSecondHalf - avgFtFirstHalf) / avgFtFirstHalf) * 100;
+                    } else if (avgFtSecondHalf > 0) {
+                        netFtChange = Infinity;
+                    }
+
+                    const avgTimeFirstHalf = calculateAvgTime(firstHalf);
+                    const avgTimeSecondHalf = calculateAvgTime(secondHalf);
+                    if (avgTimeFirstHalf > 0) {
+                        netTimeChange = ((avgTimeFirstHalf - avgTimeSecondHalf) / avgTimeFirstHalf) * 100;
+                    } else if (avgTimeSecondHalf > 0 && avgTimeFirstHalf === 0) {
+                        netTimeChange = -Infinity; 
+                    }
+                }
+
+                const csChangeText = formatPercentageChange(netCsChange);
+                const ftChangeText = formatPercentageChange(netFtChange);
+                const timeChangeText = formatPercentageChange(netTimeChange, true);
+
+
+                return `
+                    <div class="mb-4 border-b pb-4">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-xl font-bold text-blue-700">${name}</h3>
+                            <button onclick="togglePlayerDetails(this, '${name}')" class="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition player-details-toggle-btn">
+                                Show Details
+                            </button>
+                        </div>
+                        <p>Catch & Shoot: ${(stat.made / stat.total * 100).toFixed(1)}%</p>
+                        <p>Free Throws: ${(stat.ft / stat.ftTotal * 100).toFixed(1)}%</p>
+                        <p>Avg. Conditioning Time: ${Math.floor(avgTime / 60)}:${String(Math.round(avgTime % 60)).padStart(2, '0')}</p>
+                        <p>Sessions: ${stat.sessions.size}</p>
+
+                        <div id="details-${name}" class="player-details mt-4 p-4 hidden">
+                            <h4 class="font-semibold text-lg text-blue-800 mb-2">Detailed Statistics:</h4>
+                            <p class="text-md mb-1"><strong>Average Catch & Shoot %:</strong> ${(stat.made / stat.total * 100).toFixed(1)}% (${csChangeText} change)</p>
+                            
+                            <h5 class="font-semibold mt-3 mb-1">Per Spot:</h5>
+                            <ul class="list-disc list-inside ml-4 mb-2">
+                                ${stat.shotSpots.map((spot, i) => `<li>${shotSpotNames[i]}: ${(spot.made / spot.total * 100).toFixed(1)}%</li>`).join('')}
+                            </ul>
+                            <p class="text-md mb-1"><strong>Average Free Throw %:</strong> ${(stat.ft / stat.ftTotal * 100).toFixed(1)}% (${ftChangeText} change)</p>
+                            <p class="text-md mb-4"><strong>Average Conditioning Time:</strong> ${Math.floor(avgTime / 60)}:${String(Math.round(avgTime % 60)).padStart(2, '0')} (${timeChangeText} change)</p>
+
+                            <h4 class="font-semibold text-lg text-blue-800 mt-4 mb-2">Visualizations:</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="bg-white p-4 rounded shadow-md">
+                                    <canvas id="csChart-${name}"></canvas>
+                                </div>
+                                <div class="bg-white p-4 rounded shadow-md">
+                                    <canvas id="ftChart-${name}"></canvas>
+                                </div>
+                                <div class="bg-white p-4 rounded shadow-md md:col-span-2">
+                                    <canvas id="timeChart-${name}"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Re-render charts for visible details if filter changes
+            document.querySelectorAll('.player-details:not(.hidden)').forEach(detailsDiv => {
+                const playerName = detailsDiv.id.replace('details-', '');
+                renderPlayerCharts(playerName);
+            });
+            console.log('Overview updated.');
+        }
+
+        /**
+         * Toggles the visibility of player details and renders/destroys charts.
+         * @param {HTMLElement} button - The button element that was clicked.
+         * @param {string} playerName - The name of the player.
+         */
+        function togglePlayerDetails(button, playerName) {
+            const detailsDiv = document.getElementById(`details-${playerName}`);
+            detailsDiv.classList.toggle('hidden');
+            if (!detailsDiv.classList.contains('hidden')) {
+                button.innerText = 'Hide Details';
+                renderPlayerCharts(playerName);
+                console.log(`Details shown for ${playerName}.`);
+            } else {
+                button.innerText = 'Show Details';
+                // Destroy charts when hidden to free up memory and prevent rendering issues
+                if (playerCharts[playerName]) {
+                    playerCharts[playerName].csChart?.destroy();
+                    playerCharts[playerName].ftChart?.destroy();
+                    playerCharts[playerName].timeChart?.destroy();
+                    delete playerCharts[playerName];
+                    console.log(`Details hidden and charts destroyed for ${playerName}.`);
+                }
+            }
+        }
+
+        /**
+         * Renders the Chart.js graphs for a specific player.
+         * @param {string} playerName - The name of the player for whom to render charts.
+         */
+        function renderPlayerCharts(playerName) {
+            const allData = JSON.parse(localStorage.getItem('trackerData')) || [];
+            // Filter the data for charts based on the current filter
+            const filteredData = filterDataByPeriod(allData, currentFilter);
+            const playerSpecificData = filteredData.filter(entry => entry.name === playerName).sort((a, b) => dayjs(a.date).diff(dayjs(b.date)));
+
+            if (playerSpecificData.length === 0) {
+                console.log(`No data to render charts for ${playerName}.`);
+                return;
+            }
+
+            const dates = playerSpecificData.map(entry => dayjs(entry.date).format('MM/DD/YYYY'));
+            const csPercentages = playerSpecificData.map(entry => (entry.shots.reduce((a, b) => a + b, 0) / 50) * 100);
+            const ftPercentages = playerSpecificData.map(entry => (entry.ft / 20) * 100);
+            const conditioningTimes = playerSpecificData.map(entry => {
+                const [m, s] = entry.testTime.split(':').map(Number);
+                return m * 60 + s;
+            });
+
+            // Initialize playerCharts object if not exists
+            if (!playerCharts[playerName]) {
+                playerCharts[playerName] = {};
+            } else {
+                // Destroy existing charts before rendering new ones
+                playerCharts[playerName].csChart?.destroy();
+                playerCharts[playerName].ftChart?.destroy();
+                playerCharts[playerName].timeChart?.destroy();
+            }
+
+            // Catch & Shoot Chart
+            const csCtx = document.getElementById(`csChart-${playerName}`).getContext('2d');
+            playerCharts[playerName].csChart = new Chart(csCtx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Catch & Shoot %',
+                        data: csPercentages,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.3, // Smoother lines
+                        fill: true,
+                        pointBackgroundColor: 'rgb(75, 192, 192)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(75, 192, 192)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Catch & Shoot Performance Over Time',
+                            font: { size: 16, weight: 'bold' },
+                            color: '#333'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)',
+                                font: { size: 14 }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Free Throw Chart
+            const ftCtx = document.getElementById(`ftChart-${playerName}`).getContext('2d');
+            playerCharts[playerName].ftChart = new Chart(ftCtx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Free Throw %',
+                        data: ftPercentages,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: 'rgb(255, 99, 132)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(255, 99, 132)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Free Throw Performance Over Time',
+                            font: { size: 16, weight: 'bold' },
+                            color: '#333'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.parsed.y.toFixed(1) + '%';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Percentage (%)',
+                                font: { size: 14 }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Conditioning Time Chart
+            const timeCtx = document.getElementById(`timeChart-${playerName}`).getContext('2d');
+            playerCharts[playerName].timeChart = new Chart(timeCtx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: 'Conditioning Time (seconds)',
+                        data: conditioningTimes,
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: 'rgb(54, 162, 235)',
+                        pointBorderColor: '#fff',
+                        pointHoverBackgroundColor: '#fff',
+                        pointHoverBorderColor: 'rgb(54, 162, 235)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Conditioning Drill Time Over Time',
+                            font: { size: 16, weight: 'bold' },
+                            color: '#333'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    const totalSeconds = context.parsed.y;
+                                    const minutes = Math.floor(totalSeconds / 60);
+                                    const seconds = Math.round(totalSeconds % 60);
+                                    return `Time: ${minutes}:${String(seconds).padStart(2, '0')}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            reverse: true, // Lower time is better
+                            title: {
+                                display: true,
+                                text: 'Time (seconds)',
+                                font: { size: 14 }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    const minutes = Math.floor(value / 60);
+                                    const seconds = Math.round(value % 60);
+                                    return `${minutes}:${String(seconds).padStart(2, '0')}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            console.log(`Charts rendered for ${playerName}.`);
+        }
+
+        function updateLeaderboards() {
+            const allData = JSON.parse(localStorage.getItem('trackerData')) || [];
+            const data = filterDataByPeriod(allData, currentFilter);
+
+            const playersPerformance = {};
+
+            data.forEach(entry => {
+                if (!playersPerformance[entry.name]) {
+                    playersPerformance[entry.name] = {
+                        totalMadeShots: 0,
+                        totalAttemptedShots: 0,
+                        bestTime: Infinity,
+                        sessions: [],
+                    };
+                }
+                playersPerformance[entry.name].totalMadeShots += entry.shots.reduce((a, b) => a + b, 0);
+                // Corrected line: Ensure totalAttemptedShots is updated for playersPerformance
+                playersPerformance[entry.name].totalAttemptedShots += 50; 
+                
+                const [m, s] = entry.testTime.split(':').map(Number);
+                const totalSecs = m * 60 + s;
+                playersPerformance[entry.name].bestTime = Math.min(playersPerformance[entry.name].bestTime, totalSecs);
+                playersPerformance[entry.name].sessions.push(entry);
+            });
+
+            const leaderboardData = Object.entries(playersPerformance).map(([name, stats]) => {
+                const overallCSPercent = (stats.totalAttemptedShots === 0) ? 0 : (stats.totalMadeShots / stats.totalAttemptedShots) * 100;
+
+                let netCsChange = 0; 
+                
+                const playerSpecificDataForLeaderboard = stats.sessions.sort((a, b) => dayjs(a.date).diff(dayjs(b.date)));
+
+                if (playerSpecificDataForLeaderboard.length >= 2) {
+                    const halfLength = Math.floor(playerSpecificDataForLeaderboard.length / 2);
+                    const firstHalf = playerSpecificDataForLeaderboard.slice(0, halfLength);
+                    const secondHalf = playerSpecificDataForLeaderboard.slice(halfLength);
+
+                    const avgCsFirstHalf = calculateAvgCS(firstHalf);
+                    const avgCsSecondHalf = calculateAvgCS(secondHalf);
+                    if (avgCsFirstHalf > 0) {
+                        netCsChange = ((avgCsSecondHalf - avgCsFirstHalf) / avgCsFirstHalf) * 100;
+                    } else if (avgCsSecondHalf > 0) {
+                        netCsChange = Infinity; 
+                    }
+                }
+                
+                return {
+                    name: name,
+                    overallCSPercent: overallCSPercent,
+                    bestTime: stats.bestTime,
+                    netCsChange: netCsChange, 
+                };
+            });
+
+            const byShoot = [...leaderboardData].sort((a, b) => b.overallCSPercent - a.overallCSPercent).slice(0, 4);
+            const byTime = [...leaderboardData].sort((a, b) => a.bestTime - b.bestTime).slice(0, 4);
+            const byNetCsIncrease = [...leaderboardData].sort((a, b) => b.netCsChange - a.netCsChange).slice(0, 4);
+
+
+            const formatTime = (seconds) => {
+                if (seconds === Infinity) return 'N/A';
+                const minutes = Math.floor(seconds / 60);
+                const remainingSeconds = Math.round(seconds % 60);
+                return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+            };
+
+            const generateLeaderboardHtml = (title, dataArray, valueFormatter, isTime = false) => `
+                <div class="leaderboard-card">
+                    <h3 class="leaderboard-title">${title}</h3>
+                    <ul class="leaderboard-list">
+                        ${dataArray.map((item, index) => `
+                            <li>
+                                <span class="rank">${index + 1}.</span>
+                                <span class="player-name">${item.name}</span>
+                                <span class="value ${isTime && item.value > 0 ? 'red' : ''}">${valueFormatter(item)}</span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+
+            document.getElementById('leaderboards').innerHTML = `
+                ${generateLeaderboardHtml(
+                    'Top C&S Percentages',
+                    byShoot.map(p => ({ name: p.name, value: p.overallCSPercent })),
+                    (item) => `${item.value.toFixed(1)}%`
+                )}
+                ${generateLeaderboardHtml(
+                    'Conditioning Shooting Time',
+                    byTime.map(p => ({ name: p.name, value: p.bestTime })),
+                    (item) => formatTime(item.value),
+                    true
+                )}
+                ${generateLeaderboardHtml(
+                    'Top Net C&S Increases',
+                    byNetCsIncrease.map(p => ({ name: p.name, value: p.netCsChange })),
+                    (item) => {
+                        const sign = item.value >= 0 ? '▲' : '▼';
+                        const colorClass = item.value >= 0 ? 'text-green-600' : 'text-red-600';
+                        return `<span class="${colorClass}">${sign} ${Math.abs(item.value).toFixed(1)}%</span>`;
+                    }
+                )}
+            `;
+            console.log('Leaderboards updated.');
+        }
+    </script>
+</body>
+</html>
